@@ -11,28 +11,27 @@
       </div>
       <div class="card-body">
         <div class="d-flex">
-            <h5 class="d-flex align-items-center text-center text-reset-margin pe-2">Choose of field:</h2>
-            <input type="month" class="form-control w-25" id="time-selected" value="2023-03">
+            <h5 class="d-flex align-items-center text-center text-reset-margin pe-2">Date:</h2>
+            <input type="date" class="form-control w-25" id="time-selected" value="{{date}}">
         </div>
 
-        <div class="d-flex">
-          <h5 class="card-title">Start time:</h5>
-          <p class="ms-2" id="time-start"></p>
-        </div>
-        <div class="d-flex">
-          <h5 class="card-title">End time:</h5>
-          <p class="ms-2" id="time-end"></p>
-        </div>
-        <div class="d-flex">
-          <h5 class="card-title">Result:</h5>
-          <p class="ms-2" id="result"></p>
-        </div>
       </div>
     </div>
+    {% if labels_img %}
+    <img class="d-block" style="margin: 0 auto;" src="data:image/png;base64,{{ labels_img }}" alt="Biểu đồ Stress">
+    {% endif %}
+    <br>
+    {% if hr_means_img %}
+    <img class="d-block" style="margin: 0 auto;" src="data:image/png;base64,{{ hr_means_img }}" alt="Biểu đồ Stress">
+    {% endif %}
+    <!-- {% if time_labels_img %}
+    <img class="d-block" style="margin: 0 auto;" src="data:image/png;base64,{{ time_labels_img }}" alt="Biểu đồ Stress">
+    {% endif %} -->
+    
+    <br>
   </div>
 {% include "footer.html" %}
 {% endblock %}
 {% block link_js %}
-<script src="{{ url_for('static', filename='bootstrap5/js/bootstrap.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/statistic_analysis.js') }}"></script>
 {% endblock %}   

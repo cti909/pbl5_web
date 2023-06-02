@@ -1,20 +1,12 @@
-let selectedRadio = document.querySelector('input[name="sort"]:checked');
-let sort_name = selectedRadio.value;
+date = document.getElementById("dateInput").value;
+console.log(date)
+let form_search = document.getElementById("form_search");
+form_search.addEventListener("submit", function(event){
+  event.preventDefault();
+  date = document.getElementById("dateInput").value;
+  window.location.href = "/statistic_heart_rate?page=1&date="+date;
+})
 
-var sortRadios = document.querySelectorAll('input[type="radio"][name="sort"]');
-sortRadios.forEach(function(radio) {
-  radio.addEventListener("change", function() {
-    sort_name = radio.value;
-    window.location.href = "/statistic_hr?page="+window.page_current+"&sort_field="+sort_field+"&sort_name="+sort_name;
-  });
-});
-
-let selectElement = document.getElementById("field");
-let sort_field = selectElement.value;
-selectElement.addEventListener("change", function() {
-  sort_field = selectElement.value;
-  window.location.href = "/statistic_hr?page="+window.page_current+"&sort_field="+sort_field+"&sort_name="+sort_name;
-});
 let paginationContainer = document.getElementById("pagination");
 let paginationList = document.createElement("ul");
 paginationList.classList.add("pagination");
@@ -24,11 +16,14 @@ prevItem.classList.add("page-item");
 let prevLink = document.createElement("a");
 prevLink.classList.add("page-link");
 prevLink.setAttribute("aria-label", "Previous");
+prevLink.setAttribute("href", "/statistic_heart_rate?page="+(window.page_current-1)+"&date="+date);
 let prevIcon = document.createElement("i");
 prevIcon.classList.add("fa-solid", "fa-angle-left");
 prevLink.appendChild(prevIcon);
 prevItem.appendChild(prevLink);
 paginationList.appendChild(prevItem);
+if (window.page_current == 1) prevItem.classList.add("disabled");
+else prevItem.classList.remove("disabled");
 
 for (let i = 1; i <= window.page_count; i++) {
   let pageItem = document.createElement("li");
@@ -38,7 +33,7 @@ for (let i = 1; i <= window.page_count; i++) {
   }
   let pageLink = document.createElement("a");
   pageLink.classList.add("page-link");
-  pageLink.setAttribute("href", "/statistic_hr?page="+i+"&sort_field="+sort_field+"&sort_name="+sort_name);
+  pageLink.setAttribute("href", "/statistic_heart_rate?page="+i+"&date="+date);
   pageLink.textContent = i;
   pageItem.appendChild(pageLink);
   paginationList.appendChild(pageItem);
@@ -48,12 +43,15 @@ let nextItem = document.createElement("li");
 nextItem.classList.add("page-item");
 let nextLink = document.createElement("a");
 nextLink.classList.add("page-link");
+nextLink.setAttribute("href", "/statistic_heart_rate?page="+(window.page_current+1)+"&date="+date);
 nextLink.setAttribute("aria-label", "Next");
 let nextIcon = document.createElement("i");
 nextIcon.classList.add("fa-solid", "fa-angle-right");
 nextLink.appendChild(nextIcon);
 nextItem.appendChild(nextLink);
 paginationList.appendChild(nextItem);
+if (window.page_current == window.page_count) nextItem.classList.add("disabled");
+else nextItem.classList.remove("disabled");
 
 paginationContainer.appendChild(paginationList);
 
