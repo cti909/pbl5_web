@@ -7,7 +7,6 @@ import numpy as np
 import warnings
 import math
 from hrvanalysis import get_time_domain_features
-from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 import matplotlib
 import json
@@ -15,7 +14,7 @@ import json
 matplotlib.use("Agg")
 import io
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ----------------------------- create app, connect database ------------------------
 # create app
@@ -67,23 +66,23 @@ def predict(data):
     predict = model.predict([[med_rr, mean_rr, hr, sdrr_rmssd]])
     label_predict = ""
     if predict == 0:
-        print("Dự đoán trạng thái stress của bộ dữ liệu mới: Stress")
-        label_predict = "Stress"
-    if predict == 1:
         print("Dự đoán trạng thái stress của bộ dữ liệu mới: No Stress")
         label_predict = "No Stress"
+    if predict == 1:
+        print("Dự đoán trạng thái stress của bộ dữ liệu mới: Stress")
+        label_predict = "Stress"
     return label_predict
 
 # ----------------------------- end ------------------------
 
+# ----------------------------- firebase ------------------------
 import firebase_admin
 from firebase_admin import credentials, db
 
 cred = credentials.Certificate("key.json")
 # chưa config key.json
 firebase_admin.initialize_app(cred, {
-    # 'databaseURL': 'https://pbl5-6a704-default-rtdb.firebaseio.com/'
-    'databaseURL': 'https://vidieukhien-6a66b-default-rtdb.asia-southeast1.firebasedatabase.app/'
+    'databaseURL': 'https://pbl5-6a704-default-rtdb.firebaseio.com/'
 })
 
 @app.route("/firebase/show")
@@ -93,56 +92,78 @@ def get_data():
     # Xử lý dữ liệu
     return 'Data: {}'.format(data)
 
-# @app.route('/firebase/create')
-def update_firebase():
+# root test firebase thong bao
+@app.route('/firebase/create')
+def update_data_firebase():
     with open('data.json') as file:
         data = json.load(file)
-
     date = datetime.now()
     formatted_str = date.strftime("%Y-%m-%dT%H:%M:%S")
-    
-    new_location = { formatted_str : {  
-        "longitude": "108.153862",
-        "latitude": "16.07546",
+    sql = "SELECT * FROM location ORDER BY id DESC LIMIT 1;"
+    mycursor.execute(sql)
+    result = mycursor.fetchone()
+
+    longitude = result[1]
+    latitude = result[2]
+    new_location = { f"\"{formatted_str}\"" : {  
+        "longitude": longitude,
+        "latitude": latitude,
         "status": 1
     }}
-
-    data.update(new_location)
-
-    with open('data.json', 'w') as file:
-        json.dump(data, file)
-
+    data["location"].update(new_location)
+    with open("data.json", "w") as file:
+        json.dump(data, file, indent=4)
     ref = db.reference('location')
-    ref.update(data)
-
+    ref.update(data["location"])
     return formatted_str
 
-# kiem tra trong 5p co stress ko
+def update_firebase(longitude, latitude):
+    with open('data.json') as file:
+        data = json.load(file)
+    date = datetime.now()
+    formatted_str = date.strftime("%Y-%m-%dT%H:%M:%S")
+    new_location = { f"\"{formatted_str}\"" : {  
+        "longitude": longitude,
+        "latitude": latitude,
+        "status": 1
+    }}
+    data["location"].update(new_location)
+    with open("data.json", "w") as file:
+        json.dump(data, file, indent=4)
+    ref = db.reference('location')
+    ref.update(data["location"])
+    return formatted_str
+
+# kiem tra trong 10p co stress ko
 # @app.route('/check')
-def check_stress():
-    time_now = datetime.now()
-    new_time = time_now - datetime.timedelta(minutes=5)
-    time_now = time_now.strftime("%Y-%m-%d %H:%M:%S")
-    new_time = new_time.strftime("%Y-%m-%d %H:%M:%S")
-    sql = "SELECT * FROM heart_rate WHERE posting_time < '" + time_now + "' and posting_time > '"+ new_time + "'"
+def check_stress(time_limit, count_limit):
+    time_end = datetime.now()
+    time_start = time_end - timedelta(minutes = time_limit)
+    # time_start = "2023-05-24 18:56:58"
+    time_end = time_end.strftime("%Y-%m-%d %H:%M:%S")
+    time_start = time_start.strftime("%Y-%m-%d %H:%M:%S")
+    # time_start = time_start.strftime("%Y-%m-%d %H:%M:%S")
+    sql = "SELECT * FROM heart_rate WHERE posting_time >= '" + time_start + "' and posting_time <= '"+ time_end + "'"
+    print(sql)
     mycursor.execute(sql)
     myresult = mycursor.fetchall()
     count = 0
     if myresult:
         for ptu in myresult:
-            if ptu[2] == "Stress":
+            if ptu[4] == "Stress":
                 count += 1
-    if count >= 3:
+    if count >= count_limit:
         return True
     else:
-        return False 
+        return False
+
+# ----------------------------- end ------------------------
 
 # ----------------------------- show html ------------------------
 # show array heart rate
 @app.route("/")
 def heart_rate():
     return render_template("heart_rate.html")
-
 
 # location
 @app.route("/location", methods=["GET"])
@@ -424,6 +445,19 @@ def save_heart_rate():
     sql = f"INSERT INTO heart_rate (id, heart_rate_data, heart_rate_mean, posting_time, result) VALUES ({hr_id_last},'{data}',{data_mean},'{posting_time}','{label_predict}');"
     mycursor.execute(sql)
     mydb.commit()
+
+    # check 10p de canh bao
+    sql = "SELECT * FROM location ORDER BY id DESC LIMIT 1;"
+    mycursor.execute(sql)
+    result = mycursor.fetchone()
+
+    longitude = result[1]
+    latitude = result[2]
+    # trong 10p neu 5 lan stress thi canh bao
+    time_limit = 10
+    count_limit = 1 # test 5 lan
+    if check_stress(time_limit, count_limit):
+        update_firebase(longitude, latitude)
     return str(1)
 
 
@@ -453,9 +487,7 @@ def save_location():
 # ----------------------------- end ------------------------
 
 
-
-
 if __name__ == "__main__":
     model = joblib.load("model.pkl")  # model is global variable
-    # app.run(host="192.168.9.186",port=5000,debug=True)
-    app.run(debug=True)
+    app.run(host="192.168.7.186",port=5000,debug=True)
+    # app.run(debug=True)
